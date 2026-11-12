@@ -19,7 +19,8 @@ Vraagt Chrome om toestemming voor "Apparaten in de buurt"? Kies dan *Toestaan*.
 ## Bestanden
 
 - `index.html`: de webpagina (alles in één bestand)
-- `FLOWCODE.md`: de flowchart voor de Bluno, met uitleg
+- `flowcode/simple_smart_switch.fcfx`: het Flowcode-bestand voor de Bluno
+- `FLOWCODE.md`: uitleg bij de Flowcode (lees eerst "Dit moet je eerst nog zelf instellen")
 
 ## Hoe het werkt
 
