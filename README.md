@@ -32,3 +32,13 @@ poort van de Bluno (service `DFB0`, characteristic `DFB1`):
 - `D` (68) voor UIT
 
 In Flowcode lees je dat teken uit met `UART1::ReceiveChar`.
+
+## Arduino IDE (in plaats van Flowcode)
+
+Lukt Flowcode niet? Gebruik dan `arduino/simple_smart_switch/simple_smart_switch.ino`:
+
+1. Installeer de gratis Arduino IDE (arduino.cc).
+2. Open het bestand.
+3. Zet bovenaan `SERVO_PIN` op de pin van de servo.
+4. Kies bij *Tools → Board* **Arduino Uno** en bij *Tools → Port* de poort van de Bluno.
+5. Klik op **Uploaden** (de pijl naar rechts).
