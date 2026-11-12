@@ -42,3 +42,9 @@ Lukt Flowcode niet? Gebruik dan `arduino/simple_smart_switch/simple_smart_switch
 3. Zet bovenaan `SERVO_PIN` op de pin van de servo.
 4. Kies bij *Tools → Board* **Arduino Uno** en bij *Tools → Port* de poort van de Bluno.
 5. Klik op **Uploaden** (de pijl naar rechts).
+
+### Uploaden mislukt met "not in sync: resp=0x00"?
+
+De nieuwste versie van *Arduino AVR Boards* (met avrdude 8.0) kan niet
+uploaden naar de Bluno. Installeer in de **Boards Manager** de oudere
+versie **Arduino AVR Boards 1.8.5** (met avrdude 6.3). Daarmee werkt het wel.
