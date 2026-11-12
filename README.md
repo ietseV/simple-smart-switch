@@ -6,7 +6,14 @@ aan en uit te zetten vanaf een Android-telefoon.
 - **AAN**: de servo gaat 45° omhoog en dan terug naar de beginstand
 - **UIT**: de servo gaat 45° omlaag en dan terug naar de beginstand
 
-## Gebruiken
+## Android-app (APK)
+
+Download de app op de telefoon:
+https://github.com/ietseV/simple-smart-switch/releases/latest
+(tik op **SimpleSmartSwitch.apk**). Sta *installeren uit onbekende bronnen*
+toe als Android daarom vraagt. De broncode staat in `android/`.
+
+## Gebruiken (webpagina)
 
 1. Zet Bluetooth en Locatie aan op de telefoon.
 2. Open de pagina in **Chrome** op Android:
