@@ -71,6 +71,7 @@ public class MainActivity extends Activity {
     private boolean writing = false;
 
     private final Map<String, ScanResult> found = new LinkedHashMap<>();
+    private long lastListUpdate = 0;
 
     private TextView status, last, log;
     private Button scanBtn, onBtn, offBtn, testBtn, disconnectBtn;
@@ -231,7 +232,7 @@ public class MainActivity extends Activity {
     // ---------- stap 1: zoeken ----------
 
     private static boolean looksLikeBluno(String name) {
-        if (name == null) return false;
+        if (name == null || name.equals("(geen naam)")) return false;
         String n = name.toLowerCase(Locale.ROOT);
         return n.contains("bluno") || n.contains("groep");
     }
@@ -266,7 +267,8 @@ public class MainActivity extends Activity {
                     ? "Niets gevonden. Staat de Bluno aan? Staat Locatie aan?"
                     : "Tik op jullie Bluno in de lijst");
         }
-        logLine("Stap 1: zoeken klaar, " + found.size() + " apparaten met naam");
+        showList();
+        logLine("Stap 1: zoeken klaar, " + found.size() + " apparaten gevonden");
     }
 
     private final ScanCallback scanCallback = new ScanCallback() {
@@ -274,11 +276,14 @@ public class MainActivity extends Activity {
         public void onScanResult(int type, ScanResult r) {
             String name = r.getScanRecord() != null ? r.getScanRecord().getDeviceName() : null;
             if (name == null) name = r.getDevice().getName();
-            if (name == null || name.trim().isEmpty()) return;   // apparaten zonder naam overslaan
             boolean isNew = !found.containsKey(r.getDevice().getAddress());
             found.put(r.getDevice().getAddress(), r);
-            if (isNew) {
-                if (looksLikeBluno(name)) logLine("Stap 1: gevonden " + name + " (" + r.getDevice().getAddress() + ")");
+            if (isNew && looksLikeBluno(name)) {
+                logLine("Stap 1: gevonden " + name + " (" + r.getDevice().getAddress() + ")");
+            }
+            long now = System.currentTimeMillis();
+            if (isNew || now - lastListUpdate > 1000) {   // lijst hooguit 1x per seconde verversen
+                lastListUpdate = now;
                 ui.post(MainActivity.this::showList);
             }
         }
@@ -297,12 +302,16 @@ public class MainActivity extends Activity {
         for (ScanResult r : found.values()) {
             (looksLikeBluno(nameOf(r)) ? blunos : others).add(r);
         }
+        // Sterkste signaal bovenaan: leg de telefoon naast de Bluno.
+        others.sort((a, b2) -> Integer.compare(b2.getRssi(), a.getRssi()));
+        if (others.size() > 25) others = new ArrayList<>(others.subList(0, 25));
         for (ScanResult r : blunos) addRow(r, true);
         if (!others.isEmpty()) {
             TextView t = new TextView(this);
             t.setText(blunos.isEmpty()
-                    ? "Geen Bluno of GROEP gevonden. Andere apparaten:"
-                    : "Andere apparaten:");
+                    ? "Geen Bluno of GROEP op naam gevonden. Leg de telefoon naast de Bluno: "
+                      + "het apparaat met het sterkste signaal (bovenaan) is waarschijnlijk de Bluno."
+                    : "Andere apparaten (sterkste signaal bovenaan):");
             t.setTextColor(Color.rgb(95, 102, 112));
             list.addView(t, full(0, 10));
             for (ScanResult r : others) addRow(r, false);
@@ -311,7 +320,8 @@ public class MainActivity extends Activity {
 
     private String nameOf(ScanResult r) {
         String name = r.getScanRecord() != null ? r.getScanRecord().getDeviceName() : null;
-        return name != null ? name : r.getDevice().getName();
+        if (name == null) name = r.getDevice().getName();
+        return (name == null || name.trim().isEmpty()) ? "(geen naam)" : name;
     }
 
     private void addRow(ScanResult r, boolean bluno) {
