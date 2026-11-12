@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simple Smart Switch</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --card: #ffffff; --text: #1f2328; --muted: #5f6670;
+    --accent: #2f6fde; --on: #1f9d55; --off: #c0392b; --border: #d9d4c9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181c; --card: #22252b; --text: #e8e8e8; --muted: #a0a6ad;
+      --accent: #5b8ff0; --on: #34b36b; --off: #e05a4b; --border: #353941;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 17px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 24px 16px;
+  }
+  main { width: 100%; max-width: 420px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px; margin-bottom: 16px;
+  }
+  .status { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--on); }
+  .dot.busy { background: #e0a400; }
+  button {
+    width: 100%; border: 0; border-radius: 12px; padding: 18px;
+    font: inherit; font-weight: 700; font-size: 1.15rem; color: #fff;
+    cursor: pointer; touch-action: manipulation;
+  }
+  button:disabled { opacity: .4; cursor: default; }
+  #connect { background: var(--accent); margin-top: 14px; }
+  .switch { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  #on { background: var(--on); padding: 32px 0; font-size: 1.4rem; }
+  #off { background: var(--off); padding: 32px 0; font-size: 1.4rem; }
+  .last { margin-top: 14px; color: var(--muted); text-align: center; min-height: 1.4em; }
+  details { color: var(--muted); font-size: .95rem; }
+  summary { cursor: pointer; }
+  #log {
+    font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap;
+    max-height: 180px; overflow: auto; margin: 8px 0 0;
+  }
+  .warn { color: var(--off); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Simple Smart Switch</h1>
+  <p class="sub">Bluno Beetle met servo bedienen via Bluetooth</p>
+
+  <section class="card">
+    <div class="status"><span id="dot" class="dot"></span><span id="status">Niet verbonden</span></div>
+    <button id="connect">Verbinden</button>
+    <p id="support" class="warn" hidden></p>
+  </section>
+
+  <section class="card">
+    <div class="switch">
+      <button id="on" disabled>AAN</button>
+      <button id="off" disabled>UIT</button>
+    </div>
+    <p id="last" class="last"></p>
+  </section>
+
+  <details class="card">
+    <summary>Technische details</summary>
+    <p>Aan stuurt de letter <b>U</b> (code 85), Uit stuurt <b>D</b> (code 68).</p>
+    <div id="log"></div>
+  </details>
+</main>
+
+<script>
+// Bluno (DFRobot) BLE-serieel: service DFB0, seriële poort DFB1, AT-commando's DFB2.
+const SERVICE  = '0000dfb0-0000-1000-8000-00805f9b34fb';
+const SERIAL   = '0000dfb1-0000-1000-8000-00805f9b34fb';
+const COMMAND  = '0000dfb2-0000-1000-8000-00805f9b34fb';
+const CMD_ON   = 'U';   // 85 in Flowcode
+const CMD_OFF  = 'D';   // 68 in Flowcode
+const LOCK_MS  = 1200;  // knoppen even blokkeren terwijl de servo beweegt
+
+const $ = id => document.getElementById(id);
+let device = null, serial = null, busy = false;
+
+function log(msg) {
+  const t = new Date().toLocaleTimeString('nl-NL');
+  $('log').textContent = `${t}  ${msg}\n` + $('log').textContent;
+}
+function setStatus(text, state) {
+  $('status').textContent = text;
+  $('dot').className = 'dot' + (state ? ' ' + state : '');
+}
+function setConnected(ok) {
+  $('on').disabled = $('off').disabled = !ok;
+  $('connect').textContent = ok ? 'Verbinding verbreken' : 'Verbinden';
+  setStatus(ok ? `Verbonden met ${device?.name || 'Bluno'}` : 'Niet verbonden', ok ? 'ok' : '');
+}
+
+const enc = new TextEncoder();
+async function write(ch, text) {
+  const data = enc.encode(text);
+  if (ch.properties.writeWithoutResponse && ch.writeValueWithoutResponse) {
+    await ch.writeValueWithoutResponse(data);
+  } else {
+    await ch.writeValue(data);
+  }
+}
+
+async function connect() {
+  setStatus('Zoeken…', 'busy');
+  try {
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'Bluno' }, { services: [SERVICE] }],
+      optionalServices: [SERVICE],
+    });
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    setStatus('Verbinden…', 'busy');
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE);
+    serial = await service.getCharacteristic(SERIAL);
+
+    // Net als de officiële DFRobot-app: wachtwoord en snelheid doorgeven.
+    try {
+      const cmd = await service.getCharacteristic(COMMAND);
+      await write(cmd, 'AT+PASSWOR=DFRobot\r\n');
+      await write(cmd, 'AT+CURRUART=115200\r\n');
+    } catch (e) { log('AT-commando overgeslagen: ' + e.message); }
+
+    // Berichten van de Bluno tonen (als Flowcode iets terugstuurt).
+    try {
+      await serial.startNotifications();
+      serial.addEventListener('characteristicvaluechanged', e => {
+        log('Ontvangen: ' + new TextDecoder().decode(e.target.value));
+      });
+    } catch (e) { log('Meldingen niet beschikbaar: ' + e.message); }
+
+    log('Verbonden met ' + (device.name || 'Bluno'));
+    setConnected(true);
+  } catch (e) {
+    log('Fout: ' + e.message);
+    if (device?.gatt?.connected) device.gatt.disconnect();
+    setConnected(false);
+    if (e.name !== 'NotFoundError') setStatus('Verbinden mislukt, probeer opnieuw', '');
+  }
+}
+
+function onDisconnected() {
+  serial = null;
+  log('Verbinding verbroken');
+  setConnected(false);
+}
+
+async function send(cmd, label) {
+  if (!serial || busy) return;
+  busy = true;
+  $('on').disabled = $('off').disabled = true;
+  try {
+    await write(serial, cmd);
+    log(`Verstuurd: ${cmd} (${cmd.charCodeAt(0)})`);
+    $('last').textContent = `${label} verstuurd`;
+  } catch (e) {
+    log('Versturen mislukt: ' + e.message);
+    $('last').textContent = 'Versturen mislukt';
+  }
+  setTimeout(() => {
+    busy = false;
+    if (serial) $('on').disabled = $('off').disabled = false;
+  }, LOCK_MS);
+}
+
+$('connect').onclick = () => {
+  if (device?.gatt?.connected) device.gatt.disconnect();
+  else connect();
+};
+$('on').onclick  = () => send(CMD_ON, 'Aan');
+$('off').onclick = () => send(CMD_OFF, 'Uit');
+
+if (!navigator.bluetooth) {
+  $('connect').disabled = true;
+  $('support').hidden = false;
+  $('support').textContent = window.isSecureContext
+    ? 'Deze browser kan geen Bluetooth gebruiken. Open deze pagina in Chrome op Android.'
+    : 'Open deze pagina via een https-adres, anders werkt Bluetooth niet.';
+}
+</script>
+</body>
+</html>
