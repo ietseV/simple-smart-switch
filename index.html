@@ -74,11 +74,13 @@
       <button id="off" disabled>UIT</button>
     </div>
     <p id="last" class="last"></p>
+    <button id="test" class="link" disabled>Verbinding testen (servo blijft stil)</button>
   </section>
 
   <details class="card">
     <summary>Technische details</summary>
-    <p>Aan stuurt de letter <b>U</b> (code 85), Uit stuurt <b>D</b> (code 68).</p>
+    <p>Aan stuurt de letter <b>U</b> (code 85), Uit stuurt <b>D</b> (code 68).
+       Testen stuurt <b>V</b>; de Bluno antwoordt dan met <b>OK</b>.</p>
     <div id="log"></div>
   </details>
 </main>
@@ -90,6 +92,10 @@ const SERIAL   = '0000dfb1-0000-1000-8000-00805f9b34fb';
 const COMMAND  = '0000dfb2-0000-1000-8000-00805f9b34fb';
 const CMD_ON   = 'U';   // 85 in Flowcode
 const CMD_OFF  = 'D';   // 68 in Flowcode
+const CMD_TEST = 'V';   // test: Bluno antwoordt, servo beweegt niet
+// Bluno's heten standaard "Bluno"; op school hebben ze soms een groepsnaam, bijv. GROEP6.
+const NAMES    = ['Bluno', 'BLUNO', 'bluno', 'GROEP', 'Groep', 'groep'];
+const CHUNK    = 17;    // AT-commando's in stukjes van max. 17 bytes
 const LOCK_MS  = 1200;  // knoppen even blokkeren terwijl de servo beweegt
 
 const $ = id => document.getElementById(id);
@@ -104,13 +110,24 @@ function setStatus(text, state) {
   $('dot').className = 'dot' + (state ? ' ' + state : '');
 }
 function setConnected(ok) {
-  $('on').disabled = $('off').disabled = !ok;
+  $('on').disabled = $('off').disabled = $('test').disabled = !ok;
   $('connect').textContent = ok ? 'Verbinding verbreken' : 'Verbinden';
   $('connectAll').hidden = ok;
   setStatus(ok ? `Verbonden met ${device?.name || 'Bluno'}` : 'Niet verbonden', ok ? 'ok' : '');
 }
 
 const enc = new TextEncoder();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// AT-commando naar DFB2: in stukjes, en wachten op bevestiging per stukje.
+async function writeCommand(ch, text) {
+  const data = enc.encode(text);
+  for (let i = 0; i < data.length; i += CHUNK) {
+    const part = data.slice(i, i + CHUNK);
+    if (ch.writeValueWithResponse) await ch.writeValueWithResponse(part);
+    else await ch.writeValue(part);
+  }
+}
 async function write(ch, text) {
   const data = enc.encode(text);
   if (ch.properties.writeWithoutResponse && ch.writeValueWithoutResponse) {
@@ -120,42 +137,66 @@ async function write(ch, text) {
   }
 }
 
+async function openGatt() {
+  // Android geeft soms een fout (GATT 133): verbinding sluiten en één keer opnieuw.
+  try {
+    return await device.gatt.connect();
+  } catch (e) {
+    log('Stap 2: verbinden mislukt (' + e.name + ': ' + e.message + '), nog één keer…');
+    try { device.gatt.disconnect(); } catch (_) {}
+    await sleep(1000);
+    return await device.gatt.connect();
+  }
+}
+
 async function connect(showAll) {
   setStatus('Zoeken…', 'busy');
+  let step = 'Stap 1 (zoeken)';
   try {
     device = await navigator.bluetooth.requestDevice(showAll
       ? { acceptAllDevices: true, optionalServices: [SERVICE] }
-      : { filters: [{ namePrefix: 'Bluno' }, { services: [SERVICE] }],
+      : { filters: [...NAMES.map(n => ({ namePrefix: n })), { services: [SERVICE] }],
           optionalServices: [SERVICE] });
+    log('Stap 1: gekozen: ' + (device.name || '(geen naam)'));
     device.addEventListener('gattserverdisconnected', onDisconnected);
+
+    step = 'Stap 2 (verbinden)';
     setStatus('Verbinden…', 'busy');
-    const server = await device.gatt.connect();
+    const server = await openGatt();
     const service = await server.getPrimaryService(SERVICE);
     serial = await service.getCharacteristic(SERIAL);
+    log('Stap 2: verbonden, seriële poort DFB1 gevonden');
 
-    // Net als de officiële DFRobot-app: wachtwoord en snelheid doorgeven.
+    step = 'Stap 3 (wachtwoord en snelheid)';
     try {
       const cmd = await service.getCharacteristic(COMMAND);
-      await write(cmd, 'AT+PASSWOR=DFRobot\r\n');
-      await write(cmd, 'AT+CURRUART=115200\r\n');
-    } catch (e) { log('AT-commando overgeslagen: ' + e.message); }
+      await writeCommand(cmd, 'AT+PASSWOR=DFRobot\r\n');
+      await writeCommand(cmd, 'AT+CURRUART=115200\r\n');
+      log('Stap 3: wachtwoord en snelheid verstuurd naar DFB2');
+    } catch (e) { log('Stap 3 mislukt: ' + e.name + ': ' + e.message); }
 
-    // Berichten van de Bluno tonen (als Flowcode iets terugstuurt).
+    step = 'Stap 4 (meldingen)';
+    serial.addEventListener('characteristicvaluechanged', e => {
+      const text = new TextDecoder().decode(e.target.value);
+      log('Ontvangen: ' + JSON.stringify(text));
+      if (text.includes('OK')) $('last').textContent = 'Test gelukt: de Bluno antwoordt';
+    });
     try {
       await serial.startNotifications();
-      serial.addEventListener('characteristicvaluechanged', e => {
-        log('Ontvangen: ' + new TextDecoder().decode(e.target.value));
-      });
-    } catch (e) { log('Meldingen niet beschikbaar: ' + e.message); }
+      log('Stap 4: meldingen van DFB1 aan');
+    } catch (e) {
+      log('Stap 4: meldingen niet beschikbaar (' + e.name + ': ' + e.message +
+          '). Aan en Uit werken wel, maar antwoorden zie je niet.');
+    }
 
-    log('Verbonden met ' + (device.name || 'Bluno'));
     setConnected(true);
   } catch (e) {
-    log('Fout: ' + e.message);
+    log(step + ' mislukt: ' + e.name + ': ' + e.message);
     if (device?.gatt?.connected) device.gatt.disconnect();
     setConnected(false);
-    if (e.name !== 'NotFoundError') setStatus('Verbinden mislukt, probeer opnieuw', '');
-    if (/service/i.test(e.message)) setStatus('Dit apparaat is geen Bluno', '');
+    if (e.name === 'NotFoundError') setStatus('Niets gekozen', '');
+    else if (/service/i.test(e.message)) setStatus('Dit apparaat is geen Bluno', '');
+    else setStatus('Verbinden mislukt, probeer opnieuw', '');
   }
 }
 
@@ -168,7 +209,7 @@ function onDisconnected() {
 async function send(cmd, label) {
   if (!serial || busy) return;
   busy = true;
-  $('on').disabled = $('off').disabled = true;
+  $('on').disabled = $('off').disabled = $('test').disabled = true;
   try {
     await write(serial, cmd);
     log(`Verstuurd: ${cmd} (${cmd.charCodeAt(0)})`);
@@ -179,8 +220,8 @@ async function send(cmd, label) {
   }
   setTimeout(() => {
     busy = false;
-    if (serial) $('on').disabled = $('off').disabled = false;
-  }, LOCK_MS);
+    if (serial) $('on').disabled = $('off').disabled = $('test').disabled = false;
+  }, cmd === CMD_TEST ? 400 : LOCK_MS);
 }
 
 $('connect').onclick = () => {
@@ -190,6 +231,7 @@ $('connect').onclick = () => {
 $('connectAll').onclick = () => connect(true);
 $('on').onclick  = () => send(CMD_ON, 'Aan');
 $('off').onclick = () => send(CMD_OFF, 'Uit');
+$('test').onclick = () => send(CMD_TEST, 'Test');
 
 if (!navigator.bluetooth) {
   $('connect').disabled = $('connectAll').disabled = true;

@@ -1,6 +1,7 @@
 // Simple Smart Switch voor de Bluno Beetle
 // AAN op de webpagina stuurt 'U' -> servo 45 graden omhoog en terug
 // UIT op de webpagina stuurt 'D' -> servo 45 graden omlaag en terug
+// TESTEN op de webpagina stuurt 'V' -> Bluno antwoordt OK, servo blijft stil
 //
 // Uploaden: Arduino IDE, board "Arduino Uno", kies de juiste COM-poort.
 
@@ -32,5 +33,6 @@ void loop() {
     char c = Serial.read();
     if (c == 'U') beweeg(BEGINSTAND + STAP);   // AAN
     if (c == 'D') beweeg(BEGINSTAND - STAP);   // UIT
+    if (c == 'V') Serial.print("OK");          // test: servo blijft stil
   }
 }
