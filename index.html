@@ -39,6 +39,10 @@
   }
   button:disabled { opacity: .4; cursor: default; }
   #connect { background: var(--accent); margin-top: 14px; }
+  button.link {
+    background: none; color: var(--accent); font-weight: 600; font-size: .95rem;
+    padding: 12px 0 0; text-decoration: underline;
+  }
   .switch { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   #on { background: var(--on); padding: 32px 0; font-size: 1.4rem; }
   #off { background: var(--off); padding: 32px 0; font-size: 1.4rem; }
@@ -60,6 +64,7 @@
   <section class="card">
     <div class="status"><span id="dot" class="dot"></span><span id="status">Niet verbonden</span></div>
     <button id="connect">Verbinden</button>
+    <button id="connectAll" class="link">Bluno niet in de lijst? Toon alle apparaten</button>
     <p id="support" class="warn" hidden></p>
   </section>
 
@@ -101,6 +106,7 @@ function setStatus(text, state) {
 function setConnected(ok) {
   $('on').disabled = $('off').disabled = !ok;
   $('connect').textContent = ok ? 'Verbinding verbreken' : 'Verbinden';
+  $('connectAll').hidden = ok;
   setStatus(ok ? `Verbonden met ${device?.name || 'Bluno'}` : 'Niet verbonden', ok ? 'ok' : '');
 }
 
@@ -114,13 +120,13 @@ async function write(ch, text) {
   }
 }
 
-async function connect() {
+async function connect(showAll) {
   setStatus('Zoeken…', 'busy');
   try {
-    device = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: 'Bluno' }, { services: [SERVICE] }],
-      optionalServices: [SERVICE],
-    });
+    device = await navigator.bluetooth.requestDevice(showAll
+      ? { acceptAllDevices: true, optionalServices: [SERVICE] }
+      : { filters: [{ namePrefix: 'Bluno' }, { services: [SERVICE] }],
+          optionalServices: [SERVICE] });
     device.addEventListener('gattserverdisconnected', onDisconnected);
     setStatus('Verbinden…', 'busy');
     const server = await device.gatt.connect();
@@ -149,6 +155,7 @@ async function connect() {
     if (device?.gatt?.connected) device.gatt.disconnect();
     setConnected(false);
     if (e.name !== 'NotFoundError') setStatus('Verbinden mislukt, probeer opnieuw', '');
+    if (/service/i.test(e.message)) setStatus('Dit apparaat is geen Bluno', '');
   }
 }
 
@@ -178,13 +185,14 @@ async function send(cmd, label) {
 
 $('connect').onclick = () => {
   if (device?.gatt?.connected) device.gatt.disconnect();
-  else connect();
+  else connect(false);
 };
+$('connectAll').onclick = () => connect(true);
 $('on').onclick  = () => send(CMD_ON, 'Aan');
 $('off').onclick = () => send(CMD_OFF, 'Uit');
 
 if (!navigator.bluetooth) {
-  $('connect').disabled = true;
+  $('connect').disabled = $('connectAll').disabled = true;
   $('support').hidden = false;
   $('support').textContent = window.isSecureContext
     ? 'Deze browser kan geen Bluetooth gebruiken. Open deze pagina in Chrome op Android.'
