@@ -24,7 +24,10 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
+import android.content.SharedPreferences;
+import android.text.InputType;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -72,10 +75,13 @@ public class MainActivity extends Activity {
 
     private final Map<String, ScanResult> found = new LinkedHashMap<>();
     private long lastListUpdate = 0;
+    private volatile String filterAddr = "";
 
     private TextView status, last, log;
     private Button scanBtn, onBtn, offBtn, testBtn, disconnectBtn;
     private LinearLayout list;
+    private EditText addrField;
+    private SharedPreferences prefs;
 
     // ---------- scherm ----------
 
@@ -130,6 +136,27 @@ public class MainActivity extends Activity {
         status.setTextColor(Color.rgb(31, 35, 40));
         status.setText("Niet verbonden");
         root.addView(status, full(0, 12));
+
+        TextView addrLabel = new TextView(this);
+        addrLabel.setText("Adres van jullie Bluno (optioneel, bijv. C4:BE:84:12:34:56). "
+                + "Opvragen via USB met AT+MAC=?");
+        addrLabel.setTextColor(Color.rgb(95, 102, 112));
+        root.addView(addrLabel, full(0, 12));
+        prefs = getSharedPreferences("smartswitch", MODE_PRIVATE);
+        addrField = new EditText(this);
+        addrField.setSingleLine(true);
+        addrField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+                | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        addrField.setHint("leeg = alles tonen");
+        addrField.setText(prefs.getString("addr", ""));
+        addrField.setBackgroundColor(Color.WHITE);
+        addrField.setPadding(dp(12), dp(10), dp(12), dp(10));
+        root.addView(addrField, full(0, 4));
+
+        Button directBtn = bigButton("Direct verbinden met dit adres", Color.rgb(95, 102, 112));
+        directBtn.setTextSize(15);
+        directBtn.setOnClickListener(v -> connectDirect());
+        root.addView(directBtn, full(48, 8));
 
         scanBtn = bigButton("Zoek Bluno", Color.rgb(47, 111, 222));
         scanBtn.setOnClickListener(v -> startScan());
@@ -237,6 +264,33 @@ public class MainActivity extends Activity {
         return n.contains("bluno") || n.contains("groep");
     }
 
+    /** Maakt van "0xC4BE84123456" of "c4-be-84-12-34-56" een net adres "C4:BE:84:12:34:56". */
+    private static String normalizeAddr(String in) {
+        if (in == null) return "";
+        String hex = in.toUpperCase(Locale.ROOT).replaceFirst("^0X", "").replaceAll("[^0-9A-F]", "");
+        if (hex.length() != 12) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 12; i += 2) { if (i > 0) sb.append(':'); sb.append(hex, i, i + 2); }
+        return sb.toString();
+    }
+
+    private String wantedAddr() {
+        String a = normalizeAddr(addrField.getText().toString());
+        prefs.edit().putString("addr", addrField.getText().toString().trim()).apply();
+        return a;
+    }
+
+    private void connectDirect() {
+        String a = wantedAddr();
+        if (a.isEmpty()) { setStatus("Vul eerst een geldig adres in (12 tekens, 0-9 en A-F)"); return; }
+        if (adapter == null || !adapter.isEnabled()) { setStatus("Zet Bluetooth aan en probeer opnieuw"); return; }
+        if (!hasPermissions()) { askPermissions(); return; }
+        disconnect();
+        addrField.setText(a);
+        logLine("Stap 1: direct verbinden met adres " + a);
+        connect(adapter.getRemoteDevice(a), a);
+    }
+
     private void startScan() {
         if (adapter == null) { setStatus("Deze telefoon heeft geen Bluetooth"); return; }
         if (!hasPermissions()) { askPermissions(); setStatus("Geef eerst toestemming voor Bluetooth"); return; }
@@ -247,6 +301,8 @@ public class MainActivity extends Activity {
         if (scanner == null) { setStatus("Zet Bluetooth aan en probeer opnieuw"); return; }
         found.clear();
         list.removeAllViews();
+        filterAddr = wantedAddr();
+        if (!filterAddr.isEmpty()) logLine("Stap 1: alleen zoeken naar adres " + filterAddr);
         scanning = true;
         scanBtn.setText("Zoeken…");
         setStatus("Zoeken naar Bluno…");
@@ -263,7 +319,9 @@ public class MainActivity extends Activity {
         try { scanner.stopScan(scanCallback); } catch (Exception ignored) { }
         scanBtn.setText("Zoek opnieuw");
         if (gatt == null) {
-            setStatus(found.isEmpty()
+            setStatus(!filterAddr.isEmpty()
+                    ? "Adres " + filterAddr + " niet gevonden. Staat de Bluno aan? Klopt het adres?"
+                    : found.isEmpty()
                     ? "Niets gevonden. Staat de Bluno aan? Staat Locatie aan?"
                     : "Tik op jullie Bluno in de lijst");
         }
@@ -276,6 +334,13 @@ public class MainActivity extends Activity {
         public void onScanResult(int type, ScanResult r) {
             String name = r.getScanRecord() != null ? r.getScanRecord().getDeviceName() : null;
             if (name == null) name = r.getDevice().getName();
+            String want = filterAddr;
+            if (!want.isEmpty()) {
+                if (!r.getDevice().getAddress().equalsIgnoreCase(want)) return;   // alleen ons adres
+                logLine("Stap 1: adres " + want + " gevonden (" + name + "), verbinden…");
+                ui.post(() -> { if (scanning) connect(r.getDevice(), nameOf(r)); });
+                return;
+            }
             boolean isNew = !found.containsKey(r.getDevice().getAddress());
             found.put(r.getDevice().getAddress(), r);
             if (isNew && looksLikeBluno(name)) {
