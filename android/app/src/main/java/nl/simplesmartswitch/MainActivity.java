@@ -102,6 +102,8 @@ public class MainActivity extends Activity {
     private LampView lamp;
     private ToggleView toggle;
     private boolean busy = false;
+    private boolean autoReconnect = true;   // false zodra de gebruiker zelf op Verbreken drukt
+    private int autoTries = 0;              // hooguit 3 automatische pogingen achter elkaar
     private int bgColor = BG_OFF;
     private ValueAnimator bgAnim;
 
@@ -115,6 +117,22 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(BG_OFF);
         buildUi();
         askPermissions();
+        if (hasPermissions()) ui.postDelayed(this::autoConnect, 500);
+    }
+
+    /** Automatisch verbinden met het opgeslagen adres (bij openen en na wegvallen). */
+    private void autoConnect() {
+        if (gatt != null || scanning || !autoReconnect) return;
+        if (normalizeAddr(addrField.getText().toString()).isEmpty()) return;
+        if (adapter == null || !adapter.isEnabled() || !hasPermissions()) return;
+        if (autoTries >= 3) { logLine("Automatisch verbinden gestopt na 3 pogingen"); return; }
+        autoTries++;
+        logLine("Automatisch verbinden met opgeslagen adres (poging " + autoTries + ")");
+        startScan();   // zoekt alleen naar het adres en verbindt zodra het gevonden is
+    }
+
+    private void scheduleReconnect() {
+        if (autoReconnect) ui.postDelayed(this::autoConnect, 2500);
     }
 
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
@@ -186,7 +204,7 @@ public class MainActivity extends Activity {
         connectedText.setPadding(dp(10), 0, dp(10), 0);
         connectedBar.addView(connectedText, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         Button disc = button("Verbreken", FIELD, 14);
-        disc.setOnClickListener(v -> disconnect());
+        disc.setOnClickListener(v -> { autoReconnect = false; disconnect(); });
         connectedBar.addView(disc, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(42)));
         connectedBar.setVisibility(View.GONE);
         root.addView(connectedBar, full(0, 18));
@@ -197,7 +215,8 @@ public class MainActivity extends Activity {
         status = text("Niet verbonden", 15, MUTED, false);
         connectCard.addView(status, full(0, 4));
 
-        connectCard.addView(text("Adres (optioneel), opvragen via USB met AT+MAC=?", 13, MUTED, false), full(0, 14));
+        connectCard.addView(text("Adres (optioneel), opvragen via USB met AT+MAC=?. "
+                + "Na de eerste verbinding onthoudt de app het adres en verbindt hij voortaan vanzelf.", 13, MUTED, false), full(0, 14));
         prefs = getSharedPreferences("smartswitch", MODE_PRIVATE);
         addrField = new EditText(this);
         addrField.setSingleLine(true);
@@ -214,7 +233,7 @@ public class MainActivity extends Activity {
         LinearLayout btnRow = new LinearLayout(this);
         btnRow.setOrientation(LinearLayout.HORIZONTAL);
         scanBtn = button("Zoek Bluno", ACCENT, 16);
-        scanBtn.setOnClickListener(v -> startScan());
+        scanBtn.setOnClickListener(v -> { autoTries = 0; startScan(); });
         Button directBtn = button("Direct op adres", FIELD, 15);
         directBtn.setOnClickListener(v -> connectDirect());
         LinearLayout.LayoutParams l1 = new LinearLayout.LayoutParams(0, dp(52), 1);
@@ -379,7 +398,7 @@ public class MainActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
-        if (hasPermissions()) logLine("Rechten gekregen");
+        if (hasPermissions()) { logLine("Rechten gekregen"); ui.postDelayed(this::autoConnect, 500); }
         else logLine("Geen toestemming voor Bluetooth. Geef die via Instellingen > Apps > Smart Switch > Machtigingen.");
     }
 
@@ -408,6 +427,8 @@ public class MainActivity extends Activity {
     }
 
     private void connectDirect() {
+        autoReconnect = true;
+        autoTries = 0;
         String a = wantedAddr();
         if (a.isEmpty()) { setStatus("Vul eerst een geldig adres in (12 tekens, 0-9 en A-F)"); return; }
         if (adapter == null || !adapter.isEnabled()) { setStatus("Zet Bluetooth aan en probeer opnieuw"); return; }
@@ -419,6 +440,7 @@ public class MainActivity extends Activity {
     }
 
     private void startScan() {
+        autoReconnect = true;
         if (adapter == null) { setStatus("Deze telefoon heeft geen Bluetooth"); return; }
         if (!hasPermissions()) { askPermissions(); setStatus("Geef eerst toestemming voor Bluetooth"); return; }
         if (!adapter.isEnabled()) { setStatus("Zet Bluetooth aan en probeer opnieuw"); return; }
@@ -578,6 +600,7 @@ public class MainActivity extends Activity {
                     ui.postDelayed(MainActivity.this::openGatt, 800);
                 } else {
                     setStatus("Verbinden mislukt (status " + st + "). Probeer opnieuw.");
+                    ui.post(MainActivity.this::scheduleReconnect);
                     ui.post(() -> setReady(false));
                 }
                 return;
@@ -588,9 +611,11 @@ public class MainActivity extends Activity {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 logLine("Verbinding weggevallen");
                 g.close();
-                if (g == gatt) gatt = null;
+                boolean ours = g == gatt;
+                if (ours) gatt = null;
                 setStatus("Niet verbonden");
                 ui.post(() -> setReady(false));
+                if (ours) ui.post(MainActivity.this::scheduleReconnect);
             }
         }
 
@@ -680,7 +705,14 @@ public class MainActivity extends Activity {
         if (j.ch == null) {   // klaar met instellen
             logLine("Klaar: verbonden en klaar voor gebruik");
             setStatus("Verbonden met " + (chosen.getName() != null ? chosen.getName() : "Bluno"));
-            ui.post(() -> setReady(true));
+            ui.post(() -> {
+                setReady(true);
+                autoTries = 0;
+                // Adres onthouden: de volgende keer verbindt de app vanzelf.
+                String a = chosen.getAddress();
+                addrField.setText(a);
+                prefs.edit().putString("addr", a).apply();
+            });
             pump();
             return;
         }
