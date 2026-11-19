@@ -2,124 +2,146 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Simple Smart Switch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070b1c">
+<title>Smart Switch</title>
 <style>
   :root {
-    --bg: #f4f1ea; --card: #ffffff; --text: #1f2328; --muted: #5f6670;
-    --accent: #2f6fde; --on: #1f9d55; --off: #c0392b; --border: #d9d4c9;
+    --night: #070b1c; --text: #f4f1ea; --muted: #a9b0c4; --accent: #5b8ff0;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #16181c; --card: #22252b; --text: #e8e8e8; --muted: #a0a6ad;
-      --accent: #5b8ff0; --on: #34b36b; --off: #e05a4b; --border: #353941;
-    }
-  }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
+    background: var(--night); color: var(--text);
     font: 17px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    display: flex; justify-content: center; padding: 24px 16px;
   }
-  main { width: 100%; max-width: 420px; }
-  h1 { font-size: 1.5rem; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 20px; }
-  .card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 16px; padding: 20px; margin-bottom: 16px;
+  .screen {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 24px 16px;
+    padding-top: max(24px, env(safe-area-inset-top));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    transition: transform .55s cubic-bezier(.7,0,.2,1), opacity .55s;
   }
-  .status { display: flex; align-items: center; gap: 10px; font-weight: 600; }
-  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); flex: none; }
-  .dot.ok { background: var(--on); }
-  .dot.busy { background: #e0a400; }
-  button {
-    width: 100%; border: 0; border-radius: 12px; padding: 18px;
-    font: inherit; font-weight: 700; font-size: 1.15rem; color: #fff;
-    cursor: pointer; touch-action: manipulation;
+  .hidden-left  { transform: translateX(-100%); opacity: 0; pointer-events: none; }
+  .hidden-right { transform: translateX(100%);  opacity: 0; pointer-events: none; }
+
+  /* ---------- scherm 1: verbinden ---------- */
+  #connectScreen { text-align: center; gap: 10px;
+    background: radial-gradient(circle at 50% 40%, #18224a 0%, var(--night) 70%); }
+  h1 { font-size: 2rem; margin: 0; letter-spacing: .5px; }
+  .sub { color: var(--muted); margin: 0 0 36px; }
+  #connect {
+    width: 180px; height: 180px; border-radius: 50%; border: 0; cursor: pointer;
+    background: radial-gradient(circle at 35% 30%, #7aa6ff, #3563d8 70%);
+    color: #fff; font: 700 1.25rem system-ui, sans-serif;
+    box-shadow: 0 0 0 0 rgba(91,143,240,.55), 0 12px 40px rgba(53,99,216,.45);
+    animation: ping 2.2s infinite; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px; touch-action: manipulation;
   }
-  button:disabled { opacity: .4; cursor: default; }
-  #connect { background: var(--accent); margin-top: 14px; }
-  button.link {
-    background: none; color: var(--accent); font-weight: 600; font-size: .95rem;
-    padding: 12px 0 0; text-decoration: underline;
+  #connect svg { width: 44px; height: 44px; }
+  #connect:active { transform: scale(.96); }
+  #connect.busy { animation: spin-glow 1s linear infinite; }
+  @keyframes ping {
+    0% { box-shadow: 0 0 0 0 rgba(91,143,240,.55), 0 12px 40px rgba(53,99,216,.45); }
+    70% { box-shadow: 0 0 0 34px rgba(91,143,240,0), 0 12px 40px rgba(53,99,216,.45); }
+    100% { box-shadow: 0 0 0 0 rgba(91,143,240,0), 0 12px 40px rgba(53,99,216,.45); }
   }
-  .switch { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  #on { background: var(--on); padding: 32px 0; font-size: 1.4rem; }
-  #off { background: var(--off); padding: 32px 0; font-size: 1.4rem; }
-  .last { margin-top: 14px; color: var(--muted); text-align: center; min-height: 1.4em; }
-  details { color: var(--muted); font-size: .95rem; }
-  summary { cursor: pointer; }
+  @keyframes spin-glow { 50% { filter: brightness(1.25); } }
+  #status { color: var(--muted); min-height: 1.4em; margin-top: 26px; }
+  .link {
+    background: none; border: 0; color: var(--accent); font: 600 .95rem system-ui, sans-serif;
+    text-decoration: underline; padding: 10px; cursor: pointer;
+  }
+  .warn { color: #ff8a7a; font-weight: 600; max-width: 340px; }
+
+  /* ---------- scherm 2: de zon ---------- */
+  #sunScreen { padding: 0; justify-content: flex-start; }
+  #sky { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: manipulation; cursor: pointer; }
+  .topbar {
+    position: relative; z-index: 2; width: 100%; display: flex; align-items: center;
+    justify-content: space-between; padding: 14px 16px;
+    padding-top: max(14px, env(safe-area-inset-top));
+  }
+  .chip {
+    background: rgba(0,0,0,.28); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border-radius: 999px; padding: 8px 14px; font-weight: 600; font-size: .95rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chip .dot { width: 9px; height: 9px; border-radius: 50%; background: #3ddc84; }
+  #disconnect {
+    border: 0; color: var(--text); cursor: pointer; font: 600 .95rem system-ui, sans-serif;
+  }
+  .bottom {
+    position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; text-align: center;
+    padding: 0 16px max(22px, env(safe-area-inset-bottom)); pointer-events: none;
+  }
+  #caption { font-size: 1.2rem; font-weight: 700; text-shadow: 0 2px 12px rgba(0,0,0,.35); min-height: 1.5em; }
+  #hint { color: rgba(255,255,255,.75); font-size: .95rem; margin-top: 4px; min-height: 1.4em; }
+  .bottom .row { display: flex; justify-content: center; gap: 6px; margin-top: 10px; pointer-events: auto; }
+  .bottom .link { color: rgba(255,255,255,.85); }
   #log {
-    font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap;
-    max-height: 180px; overflow: auto; margin: 8px 0 0;
+    pointer-events: auto; text-align: left; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
+    white-space: pre-wrap; max-height: 30vh; overflow: auto; margin: 8px auto 0; max-width: 520px;
+    background: rgba(0,0,0,.45); border-radius: 12px; padding: 10px;
   }
-  .warn { color: var(--off); font-weight: 600; }
 </style>
 </head>
 <body>
-<main>
-  <h1>Simple Smart Switch</h1>
-  <p class="sub">Bluno Beetle met servo bedienen via Bluetooth</p>
 
-  <section class="card">
-    <div class="status"><span id="dot" class="dot"></span><span id="status">Niet verbonden</span></div>
-    <button id="connect">Verbinden</button>
-    <button id="connectAll" class="link">Bluno niet in de lijst? Toon alle apparaten</button>
-    <p id="support" class="warn" hidden></p>
-  </section>
+<!-- Scherm 1: verbinden -->
+<section id="connectScreen" class="screen">
+  <h1>Smart Switch</h1>
+  <p class="sub">Verbind met jullie Bluno</p>
+  <button id="connect" aria-label="Verbinden">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></svg>
+    <span id="connectLabel">Verbinden</span>
+  </button>
+  <p id="status"></p>
+  <button id="connectAll" class="link">Bluno niet in de lijst? Toon alle apparaten</button>
+  <p id="support" class="warn" hidden></p>
+</section>
 
-  <section class="card">
-    <div class="switch">
-      <button id="on" disabled>AAN</button>
-      <button id="off" disabled>UIT</button>
+<!-- Scherm 2: de zon -->
+<section id="sunScreen" class="screen hidden-right" aria-hidden="true">
+  <canvas id="sky" aria-label="Zon: tik om aan of uit te zetten" role="button"></canvas>
+  <div class="topbar">
+    <div class="chip"><span class="dot"></span><span id="devName">Bluno</span></div>
+    <button id="disconnect" class="chip" aria-label="Verbinding verbreken">Verbreken ✕</button>
+  </div>
+  <div class="bottom">
+    <div id="caption">De zon slaapt</div>
+    <div id="hint">Tik op de zon</div>
+    <div class="row">
+      <button id="test" class="link">Verbinding testen</button>
+      <button id="details" class="link">Details</button>
     </div>
-    <p id="last" class="last"></p>
-    <button id="test" class="link" disabled>Verbinding testen (servo blijft stil)</button>
-  </section>
-
-  <details class="card">
-    <summary>Technische details</summary>
-    <p>Aan stuurt de letter <b>U</b> (code 85), Uit stuurt <b>D</b> (code 68).
-       Testen stuurt <b>V</b>; de Bluno antwoordt dan met <b>OK</b>.</p>
-    <div id="log"></div>
-  </details>
-</main>
+    <div id="log" hidden></div>
+  </div>
+</section>
 
 <script>
-// Bluno (DFRobot) BLE-serieel: service DFB0, seriële poort DFB1, AT-commando's DFB2.
+// ===================== Bluetooth (Bluno) =====================
+// Bluno: service DFB0, seriële poort DFB1, AT-commando's DFB2.
 const SERVICE  = '0000dfb0-0000-1000-8000-00805f9b34fb';
 const SERIAL   = '0000dfb1-0000-1000-8000-00805f9b34fb';
 const COMMAND  = '0000dfb2-0000-1000-8000-00805f9b34fb';
-const CMD_ON   = 'U';   // 85 in Flowcode
-const CMD_OFF  = 'D';   // 68 in Flowcode
-const CMD_TEST = 'V';   // test: Bluno antwoordt, servo beweegt niet
-// Bluno's heten standaard "Bluno"; op school hebben ze soms een groepsnaam, bijv. GROEP6.
+const CMD_ON   = 'U';   // 85
+const CMD_OFF  = 'D';   // 68
+const CMD_TEST = 'V';   // test: Bluno antwoordt OK, servo beweegt niet
 const NAMES    = ['Bluno', 'BLUNO', 'bluno', 'GROEP', 'Groep', 'groep'];
 const CHUNK    = 17;    // AT-commando's in stukjes van max. 17 bytes
-const LOCK_MS  = 1200;  // knoppen even blokkeren terwijl de servo beweegt
+const LOCK_MS  = 1200;  // even wachten terwijl de servo beweegt
 
 const $ = id => document.getElementById(id);
-let device = null, serial = null, busy = false;
+let device = null, serial = null, busy = false, userDisconnect = false;
+const enc = new TextEncoder();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function log(msg) {
   const t = new Date().toLocaleTimeString('nl-NL');
   $('log').textContent = `${t}  ${msg}\n` + $('log').textContent;
 }
-function setStatus(text, state) {
-  $('status').textContent = text;
-  $('dot').className = 'dot' + (state ? ' ' + state : '');
-}
-function setConnected(ok) {
-  $('on').disabled = $('off').disabled = $('test').disabled = !ok;
-  $('connect').textContent = ok ? 'Verbinding verbreken' : 'Verbinden';
-  $('connectAll').hidden = ok;
-  setStatus(ok ? `Verbonden met ${device?.name || 'Bluno'}` : 'Niet verbonden', ok ? 'ok' : '');
-}
 
-const enc = new TextEncoder();
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-// AT-commando naar DFB2: in stukjes, en wachten op bevestiging per stukje.
 async function writeCommand(ch, text) {
   const data = enc.encode(text);
   for (let i = 0; i < data.length; i += CHUNK) {
@@ -128,17 +150,16 @@ async function writeCommand(ch, text) {
     else await ch.writeValue(part);
   }
 }
-async function write(ch, text) {
+async function writeSerial(text) {
   const data = enc.encode(text);
-  if (ch.properties.writeWithoutResponse && ch.writeValueWithoutResponse) {
-    await ch.writeValueWithoutResponse(data);
+  if (serial.properties.writeWithoutResponse && serial.writeValueWithoutResponse) {
+    await serial.writeValueWithoutResponse(data);
   } else {
-    await ch.writeValue(data);
+    await serial.writeValue(data);
   }
 }
 
 async function openGatt() {
-  // Android geeft soms een fout (GATT 133): verbinding sluiten en één keer opnieuw.
   try {
     return await device.gatt.connect();
   } catch (e) {
@@ -150,7 +171,7 @@ async function openGatt() {
 }
 
 async function connect(showAll) {
-  setStatus('Zoeken…', 'busy');
+  setConnecting(true, 'Zoeken…');
   let step = 'Stap 1 (zoeken)';
   try {
     device = await navigator.bluetooth.requestDevice(showAll
@@ -161,85 +182,293 @@ async function connect(showAll) {
     device.addEventListener('gattserverdisconnected', onDisconnected);
 
     step = 'Stap 2 (verbinden)';
-    setStatus('Verbinden…', 'busy');
+    setConnecting(true, 'Verbinden…');
     const server = await openGatt();
     const service = await server.getPrimaryService(SERVICE);
     serial = await service.getCharacteristic(SERIAL);
-    log('Stap 2: verbonden, seriële poort DFB1 gevonden');
+    log('Stap 2: verbonden, DFB1 gevonden');
 
     step = 'Stap 3 (wachtwoord en snelheid)';
     try {
       const cmd = await service.getCharacteristic(COMMAND);
       await writeCommand(cmd, 'AT+PASSWOR=DFRobot\r\n');
       await writeCommand(cmd, 'AT+CURRUART=115200\r\n');
-      log('Stap 3: wachtwoord en snelheid verstuurd naar DFB2');
+      log('Stap 3: wachtwoord en snelheid verstuurd');
     } catch (e) { log('Stap 3 mislukt: ' + e.name + ': ' + e.message); }
 
     step = 'Stap 4 (meldingen)';
     serial.addEventListener('characteristicvaluechanged', e => {
       const text = new TextDecoder().decode(e.target.value);
       log('Ontvangen: ' + JSON.stringify(text));
-      if (text.includes('OK')) $('last').textContent = 'Test gelukt: de Bluno antwoordt';
+      if (text.includes('OK')) flash('Test gelukt 👍', 'De Bluno antwoordt');
     });
-    try {
-      await serial.startNotifications();
-      log('Stap 4: meldingen van DFB1 aan');
-    } catch (e) {
-      log('Stap 4: meldingen niet beschikbaar (' + e.name + ': ' + e.message +
-          '). Aan en Uit werken wel, maar antwoorden zie je niet.');
-    }
+    try { await serial.startNotifications(); log('Stap 4: meldingen aan'); }
+    catch (e) { log('Stap 4: meldingen niet beschikbaar (' + e.message + ')'); }
 
-    setConnected(true);
+    userDisconnect = false;
+    setConnecting(false, '');
+    showSun(device.name || 'Bluno');
   } catch (e) {
     log(step + ' mislukt: ' + e.name + ': ' + e.message);
     if (device?.gatt?.connected) device.gatt.disconnect();
-    setConnected(false);
-    if (e.name === 'NotFoundError') setStatus('Niets gekozen', '');
-    else if (/service/i.test(e.message)) setStatus('Dit apparaat is geen Bluno', '');
-    else setStatus('Verbinden mislukt, probeer opnieuw', '');
+    serial = null;
+    setConnecting(false,
+      e.name === 'NotFoundError' ? '' :
+      /service/i.test(e.message) ? 'Dit apparaat is geen Bluno' :
+      'Verbinden mislukt, probeer het opnieuw');
   }
 }
 
 function onDisconnected() {
   serial = null;
   log('Verbinding verbroken');
-  setConnected(false);
+  showConnect(userDisconnect ? '' : 'Verbinding weggevallen. Tik om opnieuw te verbinden.');
 }
 
-async function send(cmd, label) {
-  if (!serial || busy) return;
+async function send(cmd) {
+  if (!serial || busy) return false;
   busy = true;
-  $('on').disabled = $('off').disabled = $('test').disabled = true;
   try {
-    await write(serial, cmd);
+    await writeSerial(cmd);
     log(`Verstuurd: ${cmd} (${cmd.charCodeAt(0)})`);
-    $('last').textContent = `${label} verstuurd`;
   } catch (e) {
     log('Versturen mislukt: ' + e.message);
-    $('last').textContent = 'Versturen mislukt';
-  }
-  setTimeout(() => {
     busy = false;
-    if (serial) $('on').disabled = $('off').disabled = $('test').disabled = false;
-  }, cmd === CMD_TEST ? 400 : LOCK_MS);
+    flash('Oeps, niet gelukt', 'Probeer het nog eens');
+    return false;
+  }
+  setTimeout(() => { busy = false; updateHint(); }, cmd === CMD_TEST ? 400 : LOCK_MS);
+  return true;
 }
 
-$('connect').onclick = () => {
-  if (device?.gatt?.connected) device.gatt.disconnect();
-  else connect(false);
-};
+// ===================== Schermen =====================
+function setConnecting(on, text) {
+  $('connect').classList.toggle('busy', on);
+  $('connectLabel').textContent = on ? text : 'Verbinden';
+  $('status').textContent = on ? '' : text;
+}
+function showSun(name) {
+  $('devName').textContent = name;
+  $('connectScreen').classList.add('hidden-left');
+  $('sunScreen').classList.remove('hidden-right');
+  $('sunScreen').setAttribute('aria-hidden', 'false');
+  updateHint();
+}
+function showConnect(msg) {
+  $('connectScreen').classList.remove('hidden-left');
+  $('sunScreen').classList.add('hidden-right');
+  $('sunScreen').setAttribute('aria-hidden', 'true');
+  $('status').textContent = msg || '';
+}
+
+let flashTimer = null;
+function flash(caption, hint) {
+  $('caption').textContent = caption;
+  $('hint').textContent = hint;
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(updateHint, 2200);
+}
+function updateHint() {
+  $('caption').textContent = sunOn ? 'De zon brandt! ☀️' : 'De zon slaapt';
+  $('hint').textContent = busy ? 'Servo beweegt…' : (sunOn ? 'Tik op de zon om hem uit te doen' : 'Tik op de zon om hem aan te doen');
+}
+
+$('connect').onclick = () => connect(false);
 $('connectAll').onclick = () => connect(true);
-$('on').onclick  = () => send(CMD_ON, 'Aan');
-$('off').onclick = () => send(CMD_OFF, 'Uit');
-$('test').onclick = () => send(CMD_TEST, 'Test');
+$('disconnect').onclick = () => { userDisconnect = true; if (device?.gatt?.connected) device.gatt.disconnect(); else showConnect(''); };
+$('test').onclick = async () => { if (await send(CMD_TEST)) flash('Test verstuurd…', 'Wachten op antwoord'); };
+$('details').onclick = () => { $('log').hidden = !$('log').hidden; };
 
 if (!navigator.bluetooth) {
-  $('connect').disabled = $('connectAll').disabled = true;
+  $('connect').disabled = true;
+  $('connectAll').hidden = true;
   $('support').hidden = false;
-  $('support').textContent = window.isSecureContext
-    ? 'Deze browser kan geen Bluetooth gebruiken. Open deze pagina in Chrome op Android.'
-    : 'Open deze pagina via een https-adres, anders werkt Bluetooth niet.';
+  $('support').textContent = !window.isSecureContext
+    ? 'Open deze pagina via een https-adres, anders werkt Bluetooth niet.'
+    : /iPhone|iPad|iPod/.test(navigator.userAgent)
+      ? 'Op een iPhone werkt Bluetooth niet in Safari of Chrome. Open deze pagina in de gratis app Bluefy.'
+      : 'Deze browser kan geen Bluetooth gebruiken. Open deze pagina in Chrome op Android.';
 }
+
+// ===================== De zon =====================
+const cv = $('sky'), ctx = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W = 0, H = 0, DPR = 1;
+let sunOn = false, level = 0, press = 0, shock = -1, t0 = performance.now(), last = t0;
+const stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random() * .75, r: Math.random() * 1.3 + .3, p: Math.random() * 6 }));
+const embers = [];
+
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+addEventListener('resize', resize);
+resize();
+
+const lerp = (a, b, t) => a + (b - a) * t;
+const mix = (c1, c2, t) => `rgb(${c1.map((v, i) => Math.round(lerp(v, c2[i], t))).join(',')})`;
+function sunGeom() { return { x: W / 2, y: H * 0.45, R: Math.min(W, H) * 0.19 }; }
+
+cv.addEventListener('pointerdown', e => {
+  const { x, y, R } = sunGeom();
+  const d = Math.hypot(e.clientX - x, e.clientY - y);
+  if (d > R * 1.6) return;
+  toggleSun();
+});
+
+async function toggleSun() {
+  if (busy) { flash('Even wachten…', 'De servo is nog bezig'); return; }
+  const next = !sunOn;
+  press = 1;
+  if (!(await send(next ? CMD_ON : CMD_OFF))) return;
+  sunOn = next;
+  if (sunOn) shock = 0;
+  if (navigator.vibrate) navigator.vibrate(sunOn ? [20, 40, 30] : 25);
+  updateHint();
+}
+
+function draw(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const t = (now - t0) / 1000 * (reduce ? 0.35 : 1);
+  // lamp-niveau langzaam naar doel, met een flakkering bij aangaan
+  const target = sunOn ? 1 : 0;
+  level += (target - level) * Math.min(1, dt * (sunOn ? 2.2 : 3));
+  const flick = sunOn && level < 0.9 && !reduce ? (Math.sin(t * 60) * 0.08) : 0;
+  const L = Math.max(0, Math.min(1, level + flick));
+  press = Math.max(0, press - dt * 4);
+  const { x, y, R: R0 } = sunGeom();
+  const R = R0 * (1 - press * 0.06);
+
+  // Lucht
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, mix([7, 11, 28], [255, 138, 40], L));
+  g.addColorStop(0.6, mix([16, 22, 52], [255, 94, 58], L));
+  g.addColorStop(1, mix([22, 18, 40], [120, 30, 60], L));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // Sterren (alleen 's nachts)
+  if (L < 0.98) {
+    for (const s of stars) {
+      const a = (1 - L) * (0.45 + 0.55 * Math.sin(t * 1.5 + s.p) ** 2);
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      ctx.beginPath(); ctx.arc(s.x * W, s.y * H, s.r, 0, 7); ctx.fill();
+    }
+  }
+
+  // Grote gloed
+  if (L > 0.01) {
+    const gr = ctx.createRadialGradient(x, y, R * 0.8, x, y, R * 4.2);
+    gr.addColorStop(0, `rgba(255,190,70,${0.75 * L})`);
+    gr.addColorStop(0.4, `rgba(255,120,40,${0.35 * L})`);
+    gr.addColorStop(1, 'rgba(255,90,40,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, R * 4.2, 0, 7); ctx.fill();
+  }
+
+  // Vlammen: drie lagen golvende randen
+  const layers = [
+    { c: [255, 61, 0], amp: 0.34, base: 1.22, sp: 1.3, a: 0.75 },
+    { c: [255, 143, 0], amp: 0.24, base: 1.12, sp: 1.9, a: 0.85 },
+    { c: [255, 213, 79], amp: 0.14, base: 1.05, sp: 2.6, a: 0.95 },
+  ];
+  if (L > 0.01) {
+    for (const ly of layers) {
+      ctx.beginPath();
+      const N = 120;
+      for (let i = 0; i <= N; i++) {
+        const th = i / N * Math.PI * 2;
+        const n = Math.sin(th * 7 + t * ly.sp * 2.1) * 0.5 + Math.sin(th * 11 - t * ly.sp * 2.9 + 1.7) * 0.3
+                + Math.sin(th * 17 + t * ly.sp * 4.3 + 0.6) * 0.2;
+        const r = R * (1 + (ly.base - 1 + ly.amp * (0.5 + 0.5 * n)) * L);
+        const px = x + Math.cos(th) * r, py = y + Math.sin(th) * r;
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${ly.c.join(',')},${ly.a * L})`;
+      ctx.fill();
+    }
+  }
+
+  // Zon-schijf: koud (uit) en heet (aan) over elkaar
+  const off = ctx.createRadialGradient(x - R * .3, y - R * .3, R * .1, x, y, R);
+  off.addColorStop(0, '#6b7290'); off.addColorStop(1, '#2c3150');
+  ctx.fillStyle = off; ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fill();
+  // kratertjes op de koude zon
+  ctx.fillStyle = `rgba(20,24,44,${0.35 * (1 - L)})`;
+  [[-.35, -.2, .16], [.3, .25, .12], [.1, -.45, .09], [-.15, .4, .1]].forEach(([dx, dy, r]) => {
+    ctx.beginPath(); ctx.arc(x + dx * R, y + dy * R, r * R, 0, 7); ctx.fill();
+  });
+  if (L > 0.01) {
+    const on = ctx.createRadialGradient(x, y, R * .05, x, y, R);
+    on.addColorStop(0, `rgba(255,255,230,${L})`);
+    on.addColorStop(0.45, `rgba(255,224,90,${L})`);
+    on.addColorStop(1, `rgba(255,140,20,${L})`);
+    ctx.fillStyle = on; ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fill();
+  }
+
+  // Gezichtje
+  ctx.lineCap = 'round'; ctx.lineWidth = Math.max(2, R * 0.06);
+  ctx.strokeStyle = L > 0.5 ? `rgba(150,60,0,${L})` : `rgba(15,18,34,${0.8 * (1 - L)})`;
+  const ex = R * 0.32, ey = y - R * 0.12;
+  if (L > 0.5) {
+    // blije open oogjes + lach
+    ctx.fillStyle = `rgba(150,60,0,${L})`;
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(x + s * ex, ey, R * 0.07, 0, 7); ctx.fill(); }
+    ctx.beginPath(); ctx.arc(x, y + R * 0.08, R * 0.32, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+    // blosjes
+    ctx.fillStyle = `rgba(255,90,60,${0.35 * L})`;
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(x + s * R * 0.52, y + R * 0.15, R * 0.12, R * 0.07, 0, 0, 7); ctx.fill(); }
+  } else {
+    // slapende oogjes + kleine mond
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(x + s * ex, ey, R * 0.1, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(x, y + R * 0.3, R * 0.07, 0, 7); ctx.stroke();
+    // Zzz
+    const za = 1 - L;
+    ctx.fillStyle = `rgba(200,210,240,${0.8 * za})`;
+    for (let i = 0; i < 3; i++) {
+      const ph = (t * 0.5 + i / 3) % 1;
+      ctx.globalAlpha = za * Math.sin(ph * Math.PI);
+      ctx.font = `700 ${R * (0.22 + ph * 0.25)}px system-ui, sans-serif`;
+      ctx.fillText('z', x + R * (0.9 + ph * 0.6), y - R * (0.7 + ph * 1.1));
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Schokgolf bij aangaan
+  if (shock >= 0) {
+    shock += dt * 1.6;
+    const r = R * (1.1 + shock * 3.5);
+    ctx.strokeStyle = `rgba(255,240,180,${Math.max(0, 0.7 * (1 - shock))})`;
+    ctx.lineWidth = R * 0.08 * (1 - shock) + 1;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke();
+    if (shock >= 1) shock = -1;
+  }
+
+  // Vonken die opstijgen
+  if (L > 0.3 && !reduce) {
+    const rate = 45 * L;
+    let n = rate * dt; while (n > 0) {
+      if (Math.random() < n) {
+        const a = Math.random() * Math.PI * 2;
+        embers.push({ x: x + Math.cos(a) * R * 1.1, y: y + Math.sin(a) * R * 1.1,
+          vx: Math.cos(a) * R * 0.6, vy: Math.sin(a) * R * 0.6 - R * 0.6, life: 1 + Math.random(), max: 2, s: R * (0.02 + Math.random() * 0.035) });
+      }
+      n -= 1;
+    }
+  }
+  for (let i = embers.length - 1; i >= 0; i--) {
+    const p = embers[i];
+    p.life -= dt; if (p.life <= 0) { embers.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= R * 0.4 * dt; p.vx *= 0.99;
+    ctx.fillStyle = `rgba(255,${180 + Math.random() * 60 | 0},80,${Math.min(1, p.life) * 0.9})`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, 7); ctx.fill();
+  }
+
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+updateHint();
 </script>
 </body>
 </html>
