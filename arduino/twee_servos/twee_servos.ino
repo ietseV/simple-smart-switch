@@ -1,6 +1,6 @@
 // Simple Smart Switch met TWEE servo's, voor de Bluno Beetle
-// AAN stuurt 'U'    -> beide servo's draaien van 0 naar 180 graden (en blijven daar)
-// UIT stuurt 'D'    -> beide servo's draaien terug naar 0 graden
+// AAN stuurt 'U'    -> servo 1 draait van 0 naar 180 graden (en terug)
+// UIT stuurt 'D'    -> servo 2 draait van 0 naar 180 graden (en terug)
 // TESTEN stuurt 'V' -> Bluno antwoordt OK, servo's blijven stil
 //
 // Uploaden: Arduino IDE, board "Arduino Uno", kies de juiste COM-poort.
@@ -8,11 +8,16 @@
 
 #include <Servo.h>
 
-const int SERVO1_PIN = 2;    // Servo 1 op het schoolbordje
-const int SERVO2_PIN = 3;    // Servo 2 op het schoolbordje (controleer dit!)
+const int SERVO1_PIN = 2;    // Servo 1 op het schoolbordje: AAN
+const int SERVO2_PIN = 3;    // Servo 2 op het schoolbordje: UIT (controleer dit!)
 
-const int HOEK_UIT   = 0;    // beginstand
-const int HOEK_AAN   = 180;  // stand bij AAN
+const int BEGINSTAND = 0;    // graden
+const int EINDSTAND  = 180;  // graden
+const int WACHTTIJD  = 800;  // milliseconden in de eindstand (en om terug te draaien)
+
+// true  = na het draaien terug naar de beginstand
+// false = in de eindstand blijven staan
+const bool TERUGKEREN = true;
 
 // Pulsbereik voor de volle 180 graden van een SG90.
 // Bromt of kraakt een servo in een uiterste stand? Zet MIN_PULS hoger
@@ -20,31 +25,33 @@ const int HOEK_AAN   = 180;  // stand bij AAN
 const int MIN_PULS   = 500;
 const int MAX_PULS   = 2400;
 
-// Servo 2 start iets later dan servo 1. Zo trekken ze niet allebei
-// tegelijk veel stroom (dan kan de Bluno opnieuw opstarten).
-const int VERTRAGING = 150;  // milliseconden
-
 Servo servo1;
 Servo servo2;
 
-void zetBeide(int hoek) {
-  servo1.write(hoek);
-  delay(VERTRAGING);
-  servo2.write(hoek);
+void beweeg(Servo &s) {
+  s.write(EINDSTAND);
+  delay(WACHTTIJD);
+  if (TERUGKEREN) {
+    s.write(BEGINSTAND);
+    delay(WACHTTIJD);
+  }
 }
 
 void setup() {
   Serial.begin(115200);      // standaardsnelheid van de Bluno
   servo1.attach(SERVO1_PIN, MIN_PULS, MAX_PULS);
   servo2.attach(SERVO2_PIN, MIN_PULS, MAX_PULS);
-  zetBeide(HOEK_UIT);        // beginstand: 0 graden
+  servo1.write(BEGINSTAND);
+  delay(150);                // niet allebei tegelijk starten (stroom)
+  servo2.write(BEGINSTAND);
+  delay(WACHTTIJD);
 }
 
 void loop() {
   if (Serial.available() > 0) {
     char c = Serial.read();
-    if (c == 'U') zetBeide(HOEK_AAN);   // AAN: naar 180 graden
-    if (c == 'D') zetBeide(HOEK_UIT);   // UIT: terug naar 0 graden
+    if (c == 'U') beweeg(servo1);       // AAN: servo 1
+    if (c == 'D') beweeg(servo2);       // UIT: servo 2
     if (c == 'V') Serial.print("OK");   // test: servo's blijven stil
   }
 }
