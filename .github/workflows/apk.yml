@@ -31,6 +31,7 @@ jobs:
       - name: APK's hernoemen
         run: |
           cp android/app/build/outputs/apk/smartswitch/debug/app-smartswitch-debug.apk SimpleSmartSwitch.apk
+          cp android/app/build/outputs/apk/groep1/debug/app-groep1-debug.apk Groep1.apk
           cp android/app/build/outputs/apk/groep7/debug/app-groep7-debug.apk Groep7.apk
 
       - uses: actions/upload-artifact@v4
@@ -38,6 +39,7 @@ jobs:
           name: apps
           path: |
             SimpleSmartSwitch.apk
+            Groep1.apk
             Groep7.apk
 
       - name: Release maken
@@ -48,8 +50,10 @@ jobs:
           body: |
             Download de app op je Android-telefoon en installeer hem.
             - SimpleSmartSwitch.apk: verbindt met Bluno C4:BE:84:20:1B:1B
+            - Groep1.apk: kies de eerste keer je Bluno in de lijst, daarna verbindt hij vanzelf
             - Groep7.apk: verbindt met Bluno 94:A9:A8:41:5B:6A
           files: |
             SimpleSmartSwitch.apk
+            Groep1.apk
             Groep7.apk
           make_latest: true
