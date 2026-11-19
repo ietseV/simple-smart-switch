@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
     private static final int CHUNK = 17;          // AT-commando's in stukjes van max. 17 bytes
     private static final long SCAN_MS = 12000;    // zo lang zoeken
     private static final long LOCK_MS = 1200;     // knoppen even blokkeren terwijl de servo beweegt
-    private static final String DEFAULT_ADDR = "0xC4BE84201B1B";   // onze Bluno (via AT+MAC=?)
+    private static final String DEFAULT_ADDR = BuildConfig.DEFAULT_ADDR;   // per versie, zie build.gradle
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private BluetoothAdapter adapter;
@@ -190,7 +190,7 @@ public class MainActivity extends Activity {
         root.setPadding(dp(16), dp(28), dp(16), dp(28));
         scroll.addView(root);
 
-        root.addView(text("Smart Switch", 28, TEXT, true));
+        root.addView(text(BuildConfig.APP_TITLE, 28, TEXT, true));
         root.addView(text("Bluno Beetle met servo", 15, MUTED, false), full(0, 2));
 
         // --- Balk als we verbonden zijn ---

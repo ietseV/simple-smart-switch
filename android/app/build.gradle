@@ -10,8 +10,28 @@ android {
         applicationId 'nl.simplesmartswitch'
         minSdk 23
         targetSdk 34
-        versionCode 6
-        versionName '1.5'
+        versionCode 7
+        versionName '1.6'
+    }
+
+    buildFeatures { buildConfig true }
+
+    // Twee versies van dezelfde app, elk met een eigen naam en Bluno-adres.
+    flavorDimensions 'groep'
+    productFlavors {
+        smartswitch {
+            dimension 'groep'
+            resValue 'string', 'app_name', 'Smart Switch'
+            buildConfigField 'String', 'APP_TITLE', '"Smart Switch"'
+            buildConfigField 'String', 'DEFAULT_ADDR', '"0xC4BE84201B1B"'
+        }
+        groep7 {
+            dimension 'groep'
+            applicationIdSuffix '.groep7'
+            resValue 'string', 'app_name', 'Groep 7'
+            buildConfigField 'String', 'APP_TITLE', '"Groep 7"'
+            buildConfigField 'String', 'DEFAULT_ADDR', '"0x94A9A8415B6A"'
+        }
     }
 
     compileOptions {
