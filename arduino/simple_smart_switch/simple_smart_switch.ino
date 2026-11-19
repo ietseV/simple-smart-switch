@@ -9,7 +9,7 @@
 #include <Servo.h>
 
 const int SERVO_PIN = 2;     // pin waar de servo op zit (niet 0 of 1!)
-const int STAP      = 100;   // graden naar elke kant vanaf de beginstand
+const int STAP      = 90;    // graden naar elke kant vanaf de beginstand
 const int WACHTTIJD = 700;   // milliseconden in de uiterste stand
 
 // De servo wordt aangestuurd met pulsen (in microseconden).
