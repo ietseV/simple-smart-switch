@@ -36,15 +36,15 @@ van de onderdelen opnieuw uit.
 BEGIN
 ├─ Servo_Controller1::Initialise()
 ├─ Servo_Controller1::EnableServo(0)
-├─ Servo_Controller1::SetAngle(0, 0)        ← nieuw: beginstand
+├─ Servo_Controller1::SetPosition(0, 128)   ← nieuw: beginstand (midden)
 ├─ Delay 500 ms                             ← nieuw
 ├─ UART1::Initialise()
 └─ Loop While 1
    ├─ X = UART1::ReceiveChar(100)
    ├─ If X = 85 (U = AAN)
-   │    SetAngle(0, 45) → Delay 500 ms → SetAngle(0, 0) → Delay 500 ms
+   │    SetPosition(0, 0) → Delay 500 ms → SetPosition(0, 128) → Delay 500 ms
    └─ If X = 68 (D = UIT)
-        SetAngle(0, -45) → Delay 500 ms → SetAngle(0, 0) → Delay 500 ms
+        SetPosition(0, 255) → Delay 500 ms → SetPosition(0, 128) → Delay 500 ms
 END
 ```
 
