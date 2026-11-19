@@ -63,6 +63,7 @@ public class MainActivity extends Activity {
     private static final int CHUNK = 17;          // AT-commando's in stukjes van max. 17 bytes
     private static final long SCAN_MS = 12000;    // zo lang zoeken
     private static final long LOCK_MS = 1200;     // knoppen even blokkeren terwijl de servo beweegt
+    private static final String DEFAULT_ADDR = "0xC4BE84201B1B";   // onze Bluno (via AT+MAC=?)
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private BluetoothAdapter adapter;
@@ -225,7 +226,7 @@ public class MainActivity extends Activity {
         addrField.setHint("bijv. 0xC4BE84123456 (leeg = alles tonen)");
         addrField.setHintTextColor(Color.rgb(110, 116, 132));
         addrField.setTextColor(TEXT);
-        addrField.setText(prefs.getString("addr", ""));
+        addrField.setText(prefs.getString("addr", DEFAULT_ADDR));
         addrField.setBackground(rounded(FIELD, 12));
         addrField.setPadding(dp(14), dp(12), dp(14), dp(12));
         connectCard.addView(addrField, full(0, 6));
