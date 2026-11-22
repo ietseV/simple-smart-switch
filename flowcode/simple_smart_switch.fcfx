@@ -86,7 +86,7 @@
 							<argument exp='0' />
 							<argument exp='128' />
 						</command>
-						<command class_type='delay' title='Delay' exp='500' type='2' />
+						<command class_type='delay' title='Delay' exp='500' type='1' />
 						<command class_type='call' title='Component Macro' component='UART1' macro='Initialise' />
 						<command class_type='loop' title='Loop' type='0' exp='1' for1='' for3='' >
 							<flowline >
@@ -100,12 +100,12 @@
 											<argument exp='0' />
 											<argument exp='0' />
 										</command>
-										<command class_type='delay' title='Delay' exp='500' type='2' />
+										<command class_type='delay' title='Delay' exp='500' type='1' />
 										<command class_type='call' title='Component Macro' component='Servo_Controller1' macro='SetPosition' >
 											<argument exp='0' />
 											<argument exp='128' />
 										</command>
-										<command class_type='delay' title='Delay' exp='500' type='2' />
+										<command class_type='delay' title='Delay' exp='500' type='1' />
 									</flowline>
 									<flowline />
 								</command>
@@ -115,12 +115,12 @@
 											<argument exp='0' />
 											<argument exp='255' />
 										</command>
-										<command class_type='delay' title='Delay' exp='500' type='2' />
+										<command class_type='delay' title='Delay' exp='500' type='1' />
 										<command class_type='call' title='Component Macro' component='Servo_Controller1' macro='SetPosition' >
 											<argument exp='0' />
 											<argument exp='128' />
 										</command>
-										<command class_type='delay' title='Delay' exp='500' type='2' />
+										<command class_type='delay' title='Delay' exp='500' type='1' />
 									</flowline>
 									<flowline />
 								</command>
