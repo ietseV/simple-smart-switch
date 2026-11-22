@@ -124,6 +124,14 @@
 									</flowline>
 									<flowline />
 								</command>
+								<command class_type='decision' title='Decision' exp='X = 86' swap='0' >
+									<flowline >
+										<command class_type='call' title='Component Macro' component='UART1' macro='SendString' >
+											<argument exp='"OK"' />
+										</command>
+									</flowline>
+									<flowline />
+								</command>
 							</flowline>
 						</command>
 					</flowline>
@@ -188,7 +196,7 @@
 				<properties />
 				<values >
 					<value target='Channel_Count' data='001' />
-					<value target='pin0' data='$PORTB.0' />
+					<value target='pin0' data='$PORTD.2' />
 					<value target='pin1' data='$PORTB.0' />
 					<value target='pin2' data='$PORTB.0' />
 					<value target='pin3' data='$PORTB.0' />
@@ -206,8 +214,8 @@
 					<value target='trim5' data='0' />
 					<value target='trim6' data='000' />
 					<value target='trim7' data='0' />
-					<value target='min_pulse_width' data='1000' />
-					<value target='max_pulse_width' data='2000' />
+					<value target='min_pulse_width' data='544' />
+					<value target='max_pulse_width' data='2400' />
 					<value target='CCPLo' data='198' />
 					<value target='CCPHi' data='93' />
 					<value target='Servo_Clock_Count_25' data='200' />

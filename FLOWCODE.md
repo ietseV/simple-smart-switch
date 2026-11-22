@@ -43,8 +43,10 @@ BEGIN
    ├─ X = UART1::ReceiveChar(100)
    ├─ If X = 85 (U = AAN)
    │    SetPosition(0, 0) → Delay 500 ms → SetPosition(0, 128) → Delay 500 ms
-   └─ If X = 68 (D = UIT)
-        SetPosition(0, 255) → Delay 500 ms → SetPosition(0, 128) → Delay 500 ms
+   ├─ If X = 68 (D = UIT)
+   │    SetPosition(0, 255) → Delay 500 ms → SetPosition(0, 128) → Delay 500 ms
+   └─ If X = 86 (V = TEST)
+        UART1::SendString("OK")
 END
 ```
 
