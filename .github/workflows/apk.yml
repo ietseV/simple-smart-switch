@@ -33,6 +33,7 @@ jobs:
           cp android/app/build/outputs/apk/smartswitch/debug/app-smartswitch-debug.apk SimpleSmartSwitch.apk
           cp android/app/build/outputs/apk/groep1/debug/app-groep1-debug.apk Groep1.apk
           cp android/app/build/outputs/apk/groep7/debug/app-groep7-debug.apk Groep7.apk
+          cp android/app/build/outputs/apk/groep10/debug/app-groep10-debug.apk Groep10.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -41,6 +42,7 @@ jobs:
             SimpleSmartSwitch.apk
             Groep1.apk
             Groep7.apk
+            Groep10.apk
 
       - name: Release maken
         uses: softprops/action-gh-release@v2
@@ -52,8 +54,10 @@ jobs:
             - SimpleSmartSwitch.apk: verbindt met Bluno C4:BE:84:20:1B:1B
             - Groep1.apk: kies de eerste keer je Bluno in de lijst, daarna verbindt hij vanzelf
             - Groep7.apk: verbindt met Bluno 94:A9:A8:41:5B:6A
+            - Groep10.apk: verbindt met Bluno 94:A9:A8:41:5E:22
           files: |
             SimpleSmartSwitch.apk
             Groep1.apk
             Groep7.apk
+            Groep10.apk
           make_latest: true
